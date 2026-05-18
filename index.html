@@ -1,0 +1,1660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#667eea">
+  <meta name="description" content="Silver's Wallet - Complete Personal Accounting App">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <title>Silver's Wallet</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Space+Mono:wght@400;700&display=swap');
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --primary: #667eea; --primary-dark: #5a67d8; --secondary: #764ba2;
+      --success: #48bb78; --danger: #f56565; --warning: #ed8936;
+      --dark: #2d3748; --light: #f0f4ff; --gray: #a0aec0;
+      --white: #ffffff; --black: #1a202c;
+      --card-bg: #ffffff; --border: #e2e8f0;
+      --font-main: 'Nunito', sans-serif; --font-mono: 'Space Mono', monospace;
+    }
+    body.dark-mode {
+      --light: #1a202c; --white: #2d3748; --dark: #f7fafc;
+      --gray: #718096; --card-bg: #2d3748; --border: #4a5568; --black: #f7fafc;
+    }
+    body {
+      font-family: var(--font-main);
+      background: var(--light); color: var(--dark); transition: background 0.3s, color 0.3s;
+      position: relative;
+    }
+    body::before {
+      content: '';
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background-image: url('icon-192.png');
+      background-repeat: no-repeat; background-position: center center;
+      background-size: 300px 300px; opacity: 0.06; z-index: 0; pointer-events: none;
+    }
+
+    /* ===== PIN SCREEN ===== */
+    .pin-screen {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      display: flex; justify-content: center; align-items: center; z-index: 9999;
+    }
+    .pin-screen.hidden { display: none; }
+    .pin-container {
+      background: var(--white); border-radius: 28px; padding: 40px 36px;
+      text-align: center; width: 360px; max-width: 92%;
+      box-shadow: 0 30px 60px rgba(0,0,0,0.35);
+    }
+    .pin-logo { width: 72px; height: 72px; border-radius: 18px; margin-bottom: 14px; box-shadow: 0 6px 20px rgba(0,0,0,0.2); }
+    .pin-container h2 { margin-bottom: 4px; color: var(--dark); font-size: 22px; font-weight: 800; }
+    .pin-container p { color: var(--gray); margin-bottom: 28px; font-size: 14px; }
+    .pin-display { display: flex; justify-content: center; gap: 22px; margin-bottom: 32px; }
+    .pin-dot { width: 20px; height: 20px; border-radius: 50%; background: #e2e8f0; transition: all 0.25s; }
+    .pin-dot.filled { background: var(--primary); transform: scale(1.25); box-shadow: 0 0 12px rgba(102,126,234,0.6); }
+    .pin-keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; }
+    .pin-key {
+      padding: 18px 10px; font-size: 22px; font-weight: 700; border: 2px solid var(--border);
+      background: var(--light); border-radius: 14px; cursor: pointer; transition: all 0.18s;
+      color: var(--dark); user-select: none; -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent; outline: none; font-family: var(--font-mono);
+    }
+    .pin-key:hover { background: var(--primary); color: white; border-color: var(--primary); transform: translateY(-2px); }
+    .pin-key:active { transform: scale(0.94); background: var(--primary-dark); color: white; }
+    .pin-delete { background: #fee2e2; color: var(--danger); border-color: #fecaca; }
+    .pin-delete:hover { background: var(--danger); color: white; border-color: var(--danger); }
+    .pin-ok { background: var(--success); color: white; border-color: var(--success); font-size: 16px; }
+    .pin-ok:hover { background: #38a169; border-color: #38a169; }
+    .pin-reset { background: none; border: none; color: var(--primary); cursor: pointer; font-size: 13px; margin-top: 12px; text-decoration: underline; padding: 8px; font-family: var(--font-main); }
+    .pin-error { color: var(--danger); font-size: 13px; margin-top: 8px; min-height: 20px; font-weight: 600; }
+
+    /* ===== APP LAYOUT ===== */
+    .app-container { display: flex; min-height: 100vh; position: relative; z-index: 1; }
+    .sidebar {
+      width: 280px; background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+      color: var(--white); display: flex; flex-direction: column; position: fixed;
+      height: 100vh; overflow-y: auto; transition: transform 0.3s ease; z-index: 100;
+      box-shadow: 4px 0 25px rgba(0,0,0,0.15);
+    }
+    .sidebar.mobile-hidden { transform: translateX(-100%); }
+    .sidebar-header { padding: 24px 20px; border-bottom: 1px solid rgba(255,255,255,0.2); display: flex; align-items: center; gap: 12px; }
+    .sidebar-logo { width: 42px; height: 42px; border-radius: 12px; }
+    .sidebar-header h2 { font-size: 19px; font-weight: 800; letter-spacing: -0.3px; }
+    .nav-menu { list-style: none; padding: 16px 0; flex: 1; }
+    .nav-item {
+      padding: 13px 20px; display: flex; align-items: center; gap: 13px;
+      cursor: pointer; transition: all 0.2s; font-size: 14.5px; font-weight: 600;
+      margin: 2px 10px; border-radius: 12px;
+    }
+    .nav-item:hover { background: rgba(255,255,255,0.12); }
+    .nav-item.active { background: rgba(255,255,255,0.25); border-left: 4px solid rgba(255,255,255,0.9); padding-left: 16px; }
+    .nav-icon { font-size: 19px; width: 26px; text-align: center; }
+    .sidebar-footer { padding: 18px; border-top: 1px solid rgba(255,255,255,0.2); }
+    .theme-toggle, .logout-btn {
+      width: 100%; padding: 11px; background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.3); border-radius: 10px;
+      color: var(--white); cursor: pointer; margin-bottom: 8px; font-size: 14px;
+      transition: all 0.2s; font-family: var(--font-main); font-weight: 600;
+    }
+    .theme-toggle:hover, .logout-btn:hover { background: rgba(255,255,255,0.28); }
+    .main-content { flex: 1; margin-left: 280px; padding: 28px; min-height: 100vh; }
+    .sidebar-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 99; }
+    .mobile-menu-btn {
+      display: none; position: fixed; top: 14px; left: 14px; z-index: 101;
+      background: var(--primary); color: white; border: none; border-radius: 10px;
+      padding: 11px 14px; font-size: 22px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+    }
+
+    /* ===== PAGES ===== */
+    .page { display: none; }
+    .page.active { display: block; animation: fadeIn 0.3s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    .page-header { margin-bottom: 26px; }
+    .page-header h1 { font-size: 30px; color: var(--dark); font-weight: 900; letter-spacing: -0.5px; }
+    .page-header .subtitle { color: var(--gray); font-size: 13px; margin-top: 4px; }
+
+    /* ===== CARDS ===== */
+    .stats-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 18px; margin-bottom: 26px; }
+    .stat-card {
+      background: var(--card-bg); border-radius: 20px; padding: 22px;
+      box-shadow: 0 4px 18px rgba(0,0,0,0.07); transition: transform 0.2s;
+      border: 1px solid var(--border);
+    }
+    .stat-card:hover { transform: translateY(-3px); box-shadow: 0 10px 28px rgba(0,0,0,0.12); }
+    .stat-label { font-size: 11px; color: var(--gray); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 700; }
+    .stat-value { font-size: 32px; font-weight: 900; font-family: var(--font-mono); }
+    .income-card .stat-value { color: var(--success); }
+    .expense-card .stat-value { color: var(--danger); }
+    .balance-card .stat-value { color: var(--primary); }
+    .form-card {
+      background: var(--card-bg); border-radius: 20px; padding: 28px; margin-top: 18px;
+      box-shadow: 0 4px 18px rgba(0,0,0,0.07); border: 1px solid var(--border);
+    }
+    .form-card h3 { margin-bottom: 20px; color: var(--dark); font-size: 18px; font-weight: 800; }
+
+    /* ===== BUTTONS ===== */
+    .add-buttons { display: flex; gap: 24px; justify-content: center; margin: 36px 0; flex-wrap: wrap; }
+    .add-btn {
+      padding: 36px 44px; font-size: 22px; font-weight: 900; border: none;
+      border-radius: 22px; cursor: pointer; transition: all 0.28s; min-width: 190px;
+      box-shadow: 0 10px 28px rgba(0,0,0,0.18); font-family: var(--font-main);
+    }
+    .add-btn:hover { transform: translateY(-4px); box-shadow: 0 16px 36px rgba(0,0,0,0.28); }
+    .add-btn:active { transform: scale(0.97); }
+    .income-btn { background: linear-gradient(135deg, #48bb78, #2f855a); color: white; }
+    .spending-btn { background: linear-gradient(135deg, #f56565, #c53030); color: white; }
+    .add-btn .btn-icon { font-size: 38px; display: block; margin-bottom: 10px; }
+    .btn-save { background: var(--success); color: white; border: none; padding: 13px 28px; border-radius: 10px; cursor: pointer; font-weight: 700; font-size: 15px; transition: all 0.2s; font-family: var(--font-main); }
+    .btn-save:hover { background: #38a169; transform: translateY(-1px); }
+    .btn-cancel { background: var(--gray); color: white; border: none; padding: 13px 28px; border-radius: 10px; cursor: pointer; font-size: 15px; transition: all 0.2s; font-family: var(--font-main); }
+    .btn-cancel:hover { background: #718096; }
+    .btn-primary { background: var(--primary); color: white; border: none; padding: 10px 20px; border-radius: 9px; cursor: pointer; font-size: 14px; font-weight: 700; transition: all 0.2s; font-family: var(--font-main); }
+    .btn-primary:hover { background: var(--primary-dark); }
+    .btn-edit { background: var(--primary); color: white; border: none; padding: 5px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; margin: 2px; }
+    .btn-delete { background: var(--danger); color: white; border: none; padding: 5px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; margin: 2px; }
+    .btn-success { background: var(--success); color: white; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 700; font-family: var(--font-main); transition: all 0.2s; }
+    .btn-warning { background: var(--warning); color: white; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 700; font-family: var(--font-main); transition: all 0.2s; }
+    .form-buttons { display: flex; gap: 12px; justify-content: flex-end; margin-top: 22px; flex-wrap: wrap; }
+
+    /* ===== FORMS ===== */
+    .form-group { margin-bottom: 18px; }
+    .form-group label { display: block; margin-bottom: 7px; font-weight: 700; font-size: 13px; color: var(--dark); text-transform: uppercase; letter-spacing: 0.5px; }
+    .form-input, .form-select, .form-textarea {
+      width: 100%; padding: 13px 15px; border: 2px solid var(--border); border-radius: 10px;
+      font-size: 15px; background: var(--light); color: var(--dark); transition: all 0.2s; font-family: var(--font-main);
+    }
+    .form-input:focus, .form-select:focus, .form-textarea:focus {
+      border-color: var(--primary); outline: none; box-shadow: 0 0 0 3px rgba(102,126,234,0.15);
+    }
+    .form-textarea { resize: vertical; min-height: 90px; }
+
+    /* ===== CATEGORY GRID ===== */
+    .category-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(145px, 1fr)); gap: 12px; margin: 18px 0; }
+    .category-btn {
+      padding: 16px 10px; background: var(--card-bg); border: 2px solid var(--border);
+      border-radius: 14px; cursor: pointer; text-align: center; transition: all 0.22s;
+      font-size: 13.5px; font-weight: 700; color: var(--dark); font-family: var(--font-main);
+    }
+    .category-btn:hover { background: var(--primary); color: white; border-color: var(--primary); transform: translateY(-3px); box-shadow: 0 6px 16px rgba(102,126,234,0.35); }
+    .category-btn .cat-icon { font-size: 26px; display: block; margin-bottom: 7px; }
+    .category-btn.pay-loan-btn { border-color: var(--warning); }
+    .category-btn.pay-loan-btn:hover { background: var(--warning); border-color: var(--warning); }
+
+    /* ===== CASH AT HAND ===== */
+    .cash-display {
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color: white; padding: 18px 24px; border-radius: 18px; margin-bottom: 22px;
+      font-size: 17px; font-weight: 800; text-align: center; letter-spacing: -0.3px;
+    }
+    .cash-display span { font-family: var(--font-mono); font-size: 26px; display: block; margin-top: 4px; }
+
+    /* ===== LEDGER ===== */
+    .search-bar { width: 100%; padding: 13px 16px; border: 2px solid var(--border); border-radius: 12px; font-size: 15px; background: var(--card-bg); color: var(--dark); margin-bottom: 20px; font-family: var(--font-main); }
+    .search-bar:focus { border-color: var(--primary); outline: none; }
+    .week-section { background: var(--card-bg); border-radius: 16px; margin-bottom: 16px; overflow: hidden; box-shadow: 0 3px 12px rgba(0,0,0,0.06); border: 1px solid var(--border); }
+    .week-header {
+      padding: 16px 20px; background: var(--light); cursor: pointer;
+      display: flex; justify-content: space-between; align-items: center;
+      font-weight: 800; font-size: 14px; color: var(--dark); transition: background 0.2s;
+    }
+    .week-header:hover { background: var(--border); }
+    .week-body { padding: 0; display: none; }
+    .week-body.open { display: block; }
+    .tx-table { width: 100%; border-collapse: collapse; }
+    .tx-table th { padding: 11px 14px; background: var(--light); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--gray); font-weight: 700; text-align: left; border-bottom: 1px solid var(--border); }
+    .tx-table td { padding: 12px 14px; border-bottom: 1px solid var(--border); font-size: 13.5px; vertical-align: middle; }
+    .tx-table tr:last-child td { border-bottom: none; }
+    .tx-table tr:hover td { background: rgba(102,126,234,0.04); }
+    .amount-income { color: var(--success); font-weight: 700; font-family: var(--font-mono); }
+    .amount-expense { color: var(--danger); font-weight: 700; font-family: var(--font-mono); }
+
+    /* ===== SAFE FOLDER ===== */
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+    .section-card { background: var(--card-bg); border-radius: 18px; padding: 24px; box-shadow: 0 3px 14px rgba(0,0,0,0.07); border: 1px solid var(--border); }
+    .section-card h3 { font-size: 16px; font-weight: 800; margin-bottom: 16px; color: var(--dark); display: flex; align-items: center; gap: 8px; }
+    .loan-item, .secret-item, .asset-item {
+      background: var(--light); border-radius: 12px; padding: 14px; margin-bottom: 10px;
+      border: 1px solid var(--border);
+    }
+    .loan-item .loan-name { font-weight: 800; font-size: 14px; color: var(--dark); }
+    .loan-item .loan-details { font-size: 12px; color: var(--gray); margin-top: 4px; }
+    .loan-item .loan-amount { font-family: var(--font-mono); font-weight: 700; color: var(--danger); font-size: 15px; }
+    .settled-badge { background: var(--success); color: white; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; }
+    .active-badge { background: var(--warning); color: white; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; }
+    .secret-item { display: flex; justify-content: space-between; align-items: center; }
+    .secret-label { font-weight: 700; font-size: 13px; color: var(--dark); }
+    .secret-value { font-size: 12px; color: var(--gray); font-family: var(--font-mono); margin-top: 2px; }
+
+    /* ===== VALUE FOLDER ===== */
+    .net-worth-card {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white; border-radius: 20px; padding: 28px; text-align: center;
+      margin-bottom: 24px; box-shadow: 0 10px 30px rgba(102,126,234,0.4);
+    }
+    .net-worth-card .nw-label { font-size: 12px; letter-spacing: 2px; text-transform: uppercase; opacity: 0.85; margin-bottom: 8px; font-weight: 700; }
+    .net-worth-card .nw-value { font-size: 42px; font-weight: 900; font-family: var(--font-mono); }
+
+    /* ===== AUDITOR ===== */
+    .advice-box { border-radius: 14px; padding: 18px 22px; margin-bottom: 14px; }
+    .advice-box.red { background: #fff5f5; border-left: 5px solid var(--danger); }
+    .advice-box.blue { background: #ebf8ff; border-left: 5px solid #4299e1; }
+    .advice-box.green { background: #f0fff4; border-left: 5px solid var(--success); }
+    .advice-box h4 { font-weight: 800; margin-bottom: 6px; font-size: 15px; }
+    .advice-box p { font-size: 13.5px; color: var(--gray); line-height: 1.6; }
+    body.dark-mode .advice-box.red { background: #2d1515; }
+    body.dark-mode .advice-box.blue { background: #152030; }
+    body.dark-mode .advice-box.green { background: #152515; }
+
+    /* ===== MODAL ===== */
+    .modal-overlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.55); z-index: 5000; display: flex; align-items: center; justify-content: center;
+    }
+    .modal-overlay.hidden { display: none; }
+    .modal-box {
+      background: var(--card-bg); border-radius: 20px; padding: 32px; width: 450px; max-width: 93%;
+      box-shadow: 0 24px 50px rgba(0,0,0,0.3); max-height: 85vh; overflow-y: auto;
+    }
+    .modal-box h3 { font-size: 18px; font-weight: 800; margin-bottom: 18px; color: var(--dark); }
+    .loan-select-item {
+      background: var(--light); border: 2px solid var(--border); border-radius: 12px;
+      padding: 14px 16px; margin-bottom: 10px; cursor: pointer; transition: all 0.2s;
+    }
+    .loan-select-item:hover { border-color: var(--primary); background: rgba(102,126,234,0.06); }
+    .loan-select-item .ls-name { font-weight: 800; font-size: 14px; }
+    .loan-select-item .ls-detail { font-size: 12px; color: var(--gray); margin-top: 3px; }
+
+    /* ===== MISC ===== */
+    .tag { display: inline-block; padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+    .tag-income { background: #c6f6d5; color: #276749; }
+    .tag-expense { background: #fed7d7; color: #9b2c2c; }
+    .empty-state { text-align: center; padding: 48px 20px; color: var(--gray); }
+    .empty-state .empty-icon { font-size: 52px; margin-bottom: 14px; display: block; }
+    .empty-state p { font-size: 15px; font-weight: 600; }
+    .badge-count { background: rgba(255,255,255,0.3); color: white; border-radius: 20px; padding: 2px 8px; font-size: 11px; font-weight: 700; margin-left: auto; }
+    .month-select { padding: 10px 16px; border: 2px solid var(--border); border-radius: 10px; font-size: 15px; background: var(--card-bg); color: var(--dark); font-family: var(--font-main); font-weight: 700; cursor: pointer; }
+    .month-select:focus { outline: none; border-color: var(--primary); }
+    .weekly-summary-card { background: var(--card-bg); border-radius: 16px; padding: 20px; margin-bottom: 16px; border: 1px solid var(--border); box-shadow: 0 3px 12px rgba(0,0,0,0.05); }
+    .weekly-summary-card h4 { font-size: 14px; font-weight: 800; color: var(--dark); margin-bottom: 14px; }
+    .summary-row { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 13.5px; }
+    .summary-row:last-child { border-bottom: none; }
+    .top-items { margin-top: 12px; }
+    .top-item { display: flex; justify-content: space-between; font-size: 12.5px; padding: 5px 0; color: var(--gray); }
+    .insufficient-popup { background: #fff5f5; border: 2px solid var(--danger); border-radius: 14px; padding: 18px; margin-top: 14px; }
+    .insufficient-popup p { color: var(--danger); font-weight: 700; font-size: 14px; margin-bottom: 12px; }
+    .insufficient-popup .options { display: flex; gap: 10px; flex-wrap: wrap; }
+
+    @media (max-width: 768px) {
+      .sidebar { transform: translateX(-100%); }
+      .sidebar.mobile-open { transform: translateX(0); }
+      .sidebar-overlay.visible { display: block; }
+      .main-content { margin-left: 0; padding: 20px 16px; padding-top: 64px; }
+      .mobile-menu-btn { display: flex; align-items: center; }
+      .two-col { grid-template-columns: 1fr; }
+      .add-btn { padding: 28px 32px; min-width: 150px; font-size: 19px; }
+      .stats-cards { grid-template-columns: 1fr 1fr; }
+      .tx-table { font-size: 12px; }
+      .tx-table th, .tx-table td { padding: 8px 10px; }
+    }
+    @media (max-width: 480px) {
+      .stats-cards { grid-template-columns: 1fr; }
+      .category-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+</head>
+<body>
+
+<!-- PIN SCREEN -->
+<div class="pin-screen" id="pinScreen">
+  <div class="pin-container">
+    <img src="icon-192.png" alt="Logo" class="pin-logo" onerror="this.style.display='none'">
+    <h2>Silver's Wallet</h2>
+    <p id="pinSubtitle">Enter your PIN to continue</p>
+    <div class="pin-display">
+      <div class="pin-dot" id="dot0"></div>
+      <div class="pin-dot" id="dot1"></div>
+      <div class="pin-dot" id="dot2"></div>
+      <div class="pin-dot" id="dot3"></div>
+    </div>
+    <div class="pin-keypad" id="pinKeypad">
+      <button class="pin-key" data-key="1">1</button>
+      <button class="pin-key" data-key="2">2</button>
+      <button class="pin-key" data-key="3">3</button>
+      <button class="pin-key" data-key="4">4</button>
+      <button class="pin-key" data-key="5">5</button>
+      <button class="pin-key" data-key="6">6</button>
+      <button class="pin-key" data-key="7">7</button>
+      <button class="pin-key" data-key="8">8</button>
+      <button class="pin-key" data-key="9">9</button>
+      <button class="pin-key pin-delete" data-key="del">⌫</button>
+      <button class="pin-key" data-key="0">0</button>
+      <button class="pin-key pin-ok" data-key="ok">OK</button>
+    </div>
+    <div class="pin-error" id="pinError"></div>
+    <button class="pin-reset" id="pinResetBtn">Forgot PIN? Reset App</button>
+  </div>
+</div>
+
+<!-- MODAL OVERLAY -->
+<div class="modal-overlay hidden" id="modalOverlay">
+  <div class="modal-box" id="modalBox"></div>
+</div>
+
+<!-- APP -->
+<div class="app-container">
+  <button class="mobile-menu-btn" id="mobileMenuBtn">☰</button>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <img src="icon-192.png" alt="Logo" class="sidebar-logo" onerror="this.style.display='none'">
+      <h2>Silver's Wallet</h2>
+    </div>
+    <ul class="nav-menu" id="navMenu">
+      <li class="nav-item active" data-page="today"><span class="nav-icon">📅</span> Today</li>
+      <li class="nav-item" data-page="addEntry"><span class="nav-icon">➕</span> Add Entry</li>
+      <li class="nav-item" data-page="ledger"><span class="nav-icon">📒</span> Ledger</li>
+      <li class="nav-item" data-page="monthly"><span class="nav-icon">📊</span> Monthly Summary</li>
+      <li class="nav-item" data-page="safeFolder"><span class="nav-icon">🔐</span> Safe Folder</li>
+      <li class="nav-item" data-page="valueFolder"><span class="nav-icon">💎</span> Value Folder</li>
+      <li class="nav-item" data-page="auditor"><span class="nav-icon">🧾</span> Auditor</li>
+      <li class="nav-item" data-page="exportPage"><span class="nav-icon">📤</span> Export</li>
+    </ul>
+    <div class="sidebar-footer">
+      <button class="theme-toggle" id="themeToggle">🌙 Toggle Dark Mode</button>
+      <button class="logout-btn" id="lockAppBtn">🔒 Lock App</button>
+    </div>
+  </nav>
+
+  <main class="main-content">
+
+    <!-- TODAY PAGE -->
+    <div class="page active" id="page-today">
+      <div class="page-header">
+        <div>
+          <h1>📅 Today</h1>
+          <div class="subtitle" id="todayDate"></div>
+        </div>
+      </div>
+      <div class="stats-cards">
+        <div class="stat-card income-card">
+          <div class="stat-label">Today's Income</div>
+          <div class="stat-value" id="todayIncome">UGX 0</div>
+        </div>
+        <div class="stat-card expense-card">
+          <div class="stat-label">Today's Spending</div>
+          <div class="stat-value" id="todaySpending">UGX 0</div>
+        </div>
+        <div class="stat-card balance-card">
+          <div class="stat-label">Cash at Hand</div>
+          <div class="stat-value" id="cashAtHand">UGX 0</div>
+        </div>
+      </div>
+      <div class="form-card">
+        <h3>Recent Transactions</h3>
+        <div id="recentTxList"></div>
+      </div>
+    </div>
+
+    <!-- ADD ENTRY PAGE -->
+    <div class="page" id="page-addEntry">
+      <div class="page-header"><h1>➕ Add Entry</h1></div>
+      <div id="addEntryMain">
+        <div class="add-buttons">
+          <button class="add-btn income-btn" id="btnShowIncome">
+            <span class="btn-icon">💚</span> INCOME
+          </button>
+          <button class="add-btn spending-btn" id="btnShowSpending">
+            <span class="btn-icon">❤️</span> SPENDING
+          </button>
+        </div>
+      </div>
+      <div id="addEntryContent"></div>
+    </div>
+
+    <!-- LEDGER PAGE -->
+    <div class="page" id="page-ledger">
+      <div class="page-header"><h1>📒 Ledger</h1></div>
+      <div class="cash-display" id="ledgerCashDisplay">
+        Cash at Hand <span id="ledgerCash">UGX 0</span>
+      </div>
+      <input type="text" class="search-bar" id="ledgerSearch" placeholder="🔍 Search transactions...">
+      <div id="ledgerContent"></div>
+    </div>
+
+    <!-- MONTHLY SUMMARY -->
+    <div class="page" id="page-monthly">
+      <div class="page-header"><h1>📊 Monthly Summary</h1></div>
+      <div style="margin-bottom:20px;">
+        <select class="month-select" id="monthSelect"></select>
+      </div>
+      <div id="monthlyContent"></div>
+    </div>
+
+    <!-- SAFE FOLDER -->
+    <div class="page" id="page-safeFolder">
+      <div class="page-header"><h1>🔐 Safe Folder</h1></div>
+      <div class="two-col">
+        <div>
+          <div class="section-card">
+            <h3>🏦 Loans</h3>
+            <button class="btn-primary" style="margin-bottom:14px;" id="btnAddLoan">+ Add New Loan</button>
+            <div id="loansList"></div>
+          </div>
+        </div>
+        <div>
+          <div class="section-card">
+            <h3>🔒 Secrets Vault</h3>
+            <button class="btn-primary" style="margin-bottom:14px;" id="btnAddSecret">+ Add Secret</button>
+            <div id="secretsList"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- VALUE FOLDER -->
+    <div class="page" id="page-valueFolder">
+      <div class="page-header"><h1>💎 Value Folder</h1></div>
+      <div class="net-worth-card">
+        <div class="nw-label">Net Worth</div>
+        <div class="nw-value" id="netWorthValue">UGX 0</div>
+      </div>
+      <div class="two-col">
+        <div>
+          <div class="section-card">
+            <h3>📈 Assets</h3>
+            <button class="btn-primary" style="margin-bottom:14px;" id="btnAddAsset">+ Add Asset</button>
+            <div id="assetsList"></div>
+          </div>
+        </div>
+        <div>
+          <div class="section-card">
+            <h3>📉 Liabilities</h3>
+            <button class="btn-primary" style="margin-bottom:14px;" id="btnAddLiability">+ Add Liability</button>
+            <div id="liabilitiesList"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AUDITOR PAGE -->
+    <div class="page" id="page-auditor">
+      <div class="page-header"><h1>🧾 Auditor</h1><div class="subtitle">Financial Health Report</div></div>
+      <div class="stats-cards" id="auditorStats"></div>
+      <div id="auditorAdvice"></div>
+    </div>
+
+    <!-- EXPORT PAGE -->
+    <div class="page" id="page-exportPage">
+      <div class="page-header"><h1>📤 Export</h1></div>
+      <div class="form-card">
+        <h3>Export Your Data</h3>
+        <p style="color:var(--gray);margin-bottom:20px;font-size:14px;">Download all your wallet data as a JSON file for backup.</p>
+        <button class="btn-save" id="btnExport">⬇️ Download JSON Backup</button>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+// =============================================
+// DATA MANAGEMENT
+// =============================================
+var PIN_KEY = 'sw_pin';
+var DATA_KEY = 'sw_data';
+var currentPin = '';
+var isSettingPin = false;
+var tempNewPin = '';
+
+function loadData() {
+  var raw = localStorage.getItem(DATA_KEY);
+  if (!raw) return { transactions: [], loans: [], secrets: [], assets: [], liabilities: [] };
+  try { return JSON.parse(raw); } catch(e) { return { transactions: [], loans: [], secrets: [], assets: [], liabilities: [] }; }
+}
+
+function saveData(d) { localStorage.setItem(DATA_KEY, JSON.stringify(d)); }
+
+function formatNum(n) {
+  return 'UGX ' + Math.abs(Number(n) || 0).toLocaleString();
+}
+
+function formatDate(str) {
+  if (!str) return '';
+  var d = new Date(str + 'T00:00:00');
+  return d.toLocaleDateString('en-UG', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function today() {
+  var d = new Date();
+  return d.toISOString().split('T')[0];
+}
+
+function getCash() {
+  var d = loadData();
+  var total = 0;
+  for (var i = 0; i < d.transactions.length; i++) {
+    var t = d.transactions[i];
+    if (t.type === 'income') total += Number(t.amount);
+    else total -= Number(t.amount);
+  }
+  return total;
+}
+
+function genId() { return Date.now() + '-' + Math.random().toString(36).substr(2, 6); }
+
+// =============================================
+// PIN SYSTEM
+// =============================================
+function initPin() {
+  var savedPin = localStorage.getItem(PIN_KEY);
+  if (!savedPin) {
+    isSettingPin = true;
+    document.getElementById('pinSubtitle').textContent = 'Create a 4-digit PIN to secure your wallet';
+  } else {
+    isSettingPin = false;
+    document.getElementById('pinSubtitle').textContent = 'Enter your PIN to continue';
+  }
+
+  var pb = document.querySelectorAll('#pinKeypad [data-key]');
+  for (var i = 0; i < pb.length; i++) {
+    pb[i].addEventListener('click', function() {
+      handlePinKey(this.getAttribute('data-key'));
+    });
+  }
+
+  document.getElementById('pinResetBtn').addEventListener('click', function() {
+    if (confirm('Reset app? ALL data will be deleted permanently.')) {
+      localStorage.clear();
+      currentPin = '';
+      tempNewPin = '';
+      isSettingPin = true;
+      document.getElementById('pinSubtitle').textContent = 'Create a new 4-digit PIN';
+      document.getElementById('pinError').textContent = '';
+      updateDots();
+    }
+  });
+}
+
+function handlePinKey(key) {
+  var err = document.getElementById('pinError');
+  err.textContent = '';
+
+  if (key === 'del') {
+    currentPin = currentPin.slice(0, -1);
+    updateDots();
+    return;
+  }
+  if (key === 'ok') {
+    submitPin();
+    return;
+  }
+  if (currentPin.length < 4 && /^\d$/.test(key)) {
+    currentPin += key;
+    updateDots();
+    if (currentPin.length === 4) {
+      setTimeout(submitPin, 200);
+    }
+  }
+}
+
+function updateDots() {
+  for (var i = 0; i < 4; i++) {
+    var dot = document.getElementById('dot' + i);
+    if (i < currentPin.length) dot.classList.add('filled');
+    else dot.classList.remove('filled');
+  }
+}
+
+function submitPin() {
+  var err = document.getElementById('pinError');
+  if (currentPin.length !== 4) {
+    err.textContent = 'Please enter all 4 digits.';
+    return;
+  }
+  if (isSettingPin) {
+    if (!tempNewPin) {
+      tempNewPin = currentPin;
+      currentPin = '';
+      updateDots();
+      document.getElementById('pinSubtitle').textContent = 'Confirm your PIN';
+      err.textContent = '';
+    } else {
+      if (currentPin === tempNewPin) {
+        localStorage.setItem(PIN_KEY, currentPin);
+        isSettingPin = false;
+        tempNewPin = '';
+        unlockApp();
+      } else {
+        err.textContent = '❌ PINs do not match. Try again.';
+        currentPin = '';
+        tempNewPin = '';
+        updateDots();
+        document.getElementById('pinSubtitle').textContent = 'Create a 4-digit PIN';
+      }
+    }
+  } else {
+    var saved = localStorage.getItem(PIN_KEY);
+    if (currentPin === saved) {
+      unlockApp();
+    } else {
+      err.textContent = '❌ Incorrect PIN. Try again.';
+      currentPin = '';
+      updateDots();
+    }
+  }
+}
+
+function unlockApp() {
+  document.getElementById('pinScreen').classList.add('hidden');
+  currentPin = '';
+  updateDots();
+  renderCurrentPage();
+}
+
+function lockApp() {
+  currentPin = '';
+  updateDots();
+  document.getElementById('pinError').textContent = '';
+  var saved = localStorage.getItem(PIN_KEY);
+  if (saved) {
+    isSettingPin = false;
+    document.getElementById('pinSubtitle').textContent = 'Enter your PIN to continue';
+  }
+  document.getElementById('pinScreen').classList.remove('hidden');
+}
+
+// =============================================
+// NAVIGATION
+// =============================================
+var currentPage = 'today';
+
+function navigateTo(page) {
+  currentPage = page;
+  document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
+  var target = document.getElementById('page-' + page);
+  if (target) target.classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(function(n) {
+    n.classList.toggle('active', n.getAttribute('data-page') === page);
+  });
+  closeSidebar();
+  renderCurrentPage();
+}
+
+function renderCurrentPage() {
+  if (currentPage === 'today') renderToday();
+  else if (currentPage === 'ledger') renderLedger();
+  else if (currentPage === 'monthly') renderMonthly();
+  else if (currentPage === 'safeFolder') renderSafeFolder();
+  else if (currentPage === 'valueFolder') renderValueFolder();
+  else if (currentPage === 'auditor') renderAuditor();
+  else if (currentPage === 'addEntry') renderAddEntry();
+}
+
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('mobile-open');
+  document.getElementById('sidebarOverlay').classList.remove('visible');
+}
+
+// =============================================
+// TODAY PAGE
+// =============================================
+function renderToday() {
+  var d = loadData();
+  var todayStr = today();
+  document.getElementById('todayDate').textContent = new Date().toLocaleDateString('en-UG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+  var todayInc = 0, todaySp = 0;
+  for (var i = 0; i < d.transactions.length; i++) {
+    var t = d.transactions[i];
+    if (t.date === todayStr) {
+      if (t.type === 'income') todayInc += Number(t.amount);
+      else todaySp += Number(t.amount);
+    }
+  }
+  document.getElementById('todayIncome').textContent = formatNum(todayInc);
+  document.getElementById('todaySpending').textContent = formatNum(todaySp);
+  document.getElementById('cashAtHand').textContent = formatNum(getCash());
+
+  var recent = d.transactions.slice().reverse().slice(0, 10);
+  var html = '';
+  if (recent.length === 0) {
+    html = '<div class="empty-state"><span class="empty-icon">📭</span><p>No transactions yet</p></div>';
+  } else {
+    for (var j = 0; j < recent.length; j++) {
+      var tx = recent[j];
+      var sign = tx.type === 'income' ? '+' : '-';
+      var cls = tx.type === 'income' ? 'amount-income' : 'amount-expense';
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border);">' +
+        '<div><div style="font-weight:700;font-size:14px;">' + escHtml(tx.category) + '</div>' +
+        '<div style="font-size:12px;color:var(--gray);">' + formatDate(tx.date) + (tx.description ? ' · ' + escHtml(tx.description) : '') + '</div></div>' +
+        '<div class="' + cls + '">' + sign + formatNum(tx.amount) + '</div>' +
+        '</div>';
+    }
+  }
+  document.getElementById('recentTxList').innerHTML = html;
+}
+
+// =============================================
+// ADD ENTRY PAGE
+// =============================================
+var addEntryMode = null; // 'income' or 'spending'
+
+function renderAddEntry() {
+  document.getElementById('addEntryContent').innerHTML = '';
+  addEntryMode = null;
+}
+
+var incomeCategories = [
+  { icon: '💼', label: 'Salary / Wages' },
+  { icon: '📈', label: 'Investment Returns' },
+  { icon: '🏢', label: 'Business Income' },
+  { icon: '🏠', label: 'Rental Income' },
+  { icon: '💰', label: 'Refund / Reimbursement' },
+  { icon: '🏦', label: 'Loan Received' },
+  { icon: '🎁', label: 'Gift / Donation' },
+  { icon: '💸', label: 'Loan Repayment Received' },
+  { icon: '🔄', label: 'Asset Sale' },
+  { icon: '📦', label: 'Other Income' }
+];
+
+var spendingCategories = [
+  { icon: '🏠', label: 'Real Estate' },
+  { icon: '🚗', label: 'Physical Assets' },
+  { icon: '📈', label: 'Financial Assets' },
+  { icon: '🧠', label: 'Intangible Assets' },
+  { icon: '💼', label: 'Business Purchase' },
+  { icon: '💸', label: 'Payments' },
+  { icon: '💎', label: 'Luxury' },
+  { icon: '👤', label: 'Personal' },
+  { icon: '📦', label: 'Others' },
+  { icon: '🏦', label: 'Pay Off Loan' }
+];
+
+function showIncomeCategories() {
+  addEntryMode = 'income';
+  var html = '<div class="form-card"><h3>💚 Select Income Category</h3><div class="category-grid">';
+  for (var i = 0; i < incomeCategories.length; i++) {
+    html += '<div class="category-btn" onclick="selectIncomeCategory(\'' + escAttr(incomeCategories[i].label) + '\')">' +
+      '<span class="cat-icon">' + incomeCategories[i].icon + '</span>' + escHtml(incomeCategories[i].label) + '</div>';
+  }
+  html += '</div></div>';
+  document.getElementById('addEntryContent').innerHTML = html;
+}
+
+function showSpendingCategories() {
+  addEntryMode = 'spending';
+  var html = '<div class="form-card"><h3>❤️ Select Spending Category</h3><div class="category-grid">';
+  for (var i = 0; i < spendingCategories.length; i++) {
+    var extra = spendingCategories[i].label === 'Pay Off Loan' ? ' pay-loan-btn' : '';
+    html += '<div class="category-btn' + extra + '" onclick="selectSpendingCategory(\'' + escAttr(spendingCategories[i].label) + '\')">' +
+      '<span class="cat-icon">' + spendingCategories[i].icon + '</span>' + escHtml(spendingCategories[i].label) + '</div>';
+  }
+  html += '</div></div>';
+  document.getElementById('addEntryContent').innerHTML = html;
+}
+
+function selectIncomeCategory(cat) {
+  if (cat === 'Loan Received') { showLoanReceivedForm(); return; }
+  if (cat === 'Asset Sale') { showAssetSaleForm(); return; }
+  showTransactionForm('income', cat);
+}
+
+function selectSpendingCategory(cat) {
+  if (cat === 'Pay Off Loan') { showPayLoanModal(); return; }
+  if (cat === 'Payments') { showPaymentsSubcategories(); return; }
+  showTransactionForm('spending', cat);
+}
+
+function showPaymentsSubcategories() {
+  var subs = ['Loan Repayment', 'Utility Bills', 'Phone & Internet', 'Rent', 'Taxes', 'Credit Card', 'Service Fees', 'Other Payments'];
+  var html = '<div class="form-card"><h3>💸 Select Payment Type</h3><div class="category-grid">';
+  for (var i = 0; i < subs.length; i++) {
+    html += '<div class="category-btn" onclick="selectPaymentSub(\'' + escAttr(subs[i]) + '\')">' +
+      '<span class="cat-icon">💳</span>' + escHtml(subs[i]) + '</div>';
+  }
+  html += '</div><button class="btn-cancel" style="margin-top:14px;" onclick="showSpendingCategories()">← Back</button></div>';
+  document.getElementById('addEntryContent').innerHTML = html;
+}
+
+function selectPaymentSub(sub) {
+  if (sub === 'Loan Repayment') { showPayLoanModal(); return; }
+  showTransactionForm('spending', 'Payments - ' + sub);
+}
+
+// ===== PAY OFF LOAN MODAL =====
+function showPayLoanModal() {
+  var d = loadData();
+  var activeLoans = d.loans.filter(function(l) { return !l.settled; });
+
+  if (activeLoans.length === 0) {
+    showModal('<h3>🏦 Pay Off Loan</h3><div class="empty-state"><span class="empty-icon">✅</span><p>No active loans found.<br>Add a loan first via "Loan Received" income.</p></div><div style="text-align:right;margin-top:16px;"><button class="btn-cancel" onclick="closeModal()">Close</button></div>');
+    return;
+  }
+
+  var html = '<h3>🏦 Select Loan to Pay</h3>';
+  for (var i = 0; i < activeLoans.length; i++) {
+    var l = activeLoans[i];
+    html += '<div class="loan-select-item" onclick="selectLoanToPay(\'' + l.id + '\')">' +
+      '<div class="ls-name">🏦 ' + escHtml(l.bank || l.person || 'Loan') + '</div>' +
+      '<div class="ls-detail">Remaining: <strong>' + formatNum(l.remaining) + '</strong> · Due: ' + formatDate(l.dueDate) + '</div>' +
+      '</div>';
+  }
+  html += '<div style="text-align:right;margin-top:14px;"><button class="btn-cancel" onclick="closeModal()">Cancel</button></div>';
+  showModal(html);
+}
+
+function selectLoanToPay(loanId) {
+  var d = loadData();
+  var loan = null;
+  for (var i = 0; i < d.loans.length; i++) { if (d.loans[i].id === loanId) { loan = d.loans[i]; break; } }
+  if (!loan) return;
+
+  var html = '<h3>💳 Pay Loan: ' + escHtml(loan.bank || loan.person || 'Loan') + '</h3>' +
+    '<div style="background:var(--light);border-radius:10px;padding:12px;margin-bottom:16px;">' +
+    '<div style="font-size:13px;color:var(--gray);">Remaining Balance</div>' +
+    '<div style="font-size:22px;font-weight:900;color:var(--danger);font-family:var(--font-mono);">' + formatNum(loan.remaining) + '</div>' +
+    '</div>' +
+    '<div class="form-group"><label>Payment Amount</label><input type="number" class="form-input" id="loanPayAmount" placeholder="Enter amount" min="1" max="' + loan.remaining + '"></div>' +
+    '<div class="form-group"><label>Date</label><input type="date" class="form-input" id="loanPayDate" value="' + today() + '"></div>' +
+    '<div class="form-group"><label>Notes (optional)</label><input type="text" class="form-input" id="loanPayNotes" placeholder="Payment notes"></div>' +
+    '<div class="form-buttons"><button class="btn-cancel" onclick="closeModal()">Cancel</button><button class="btn-save" onclick="processLoanPayment(\'' + loanId + '\')">Pay Now</button></div>';
+  showModal(html);
+}
+
+function processLoanPayment(loanId) {
+  var amt = parseFloat(document.getElementById('loanPayAmount').value);
+  var date = document.getElementById('loanPayDate').value;
+  var notes = document.getElementById('loanPayNotes').value;
+
+  if (!amt || amt <= 0) { alert('Enter a valid amount.'); return; }
+  if (!date) { alert('Select a date.'); return; }
+
+  var d = loadData();
+  var loan = null;
+  for (var i = 0; i < d.loans.length; i++) { if (d.loans[i].id === loanId) { loan = d.loans[i]; break; } }
+  if (!loan) return;
+
+  if (amt > loan.remaining) { alert('Amount exceeds remaining balance of ' + formatNum(loan.remaining)); return; }
+
+  loan.remaining = Math.max(0, loan.remaining - amt);
+  if (loan.remaining === 0) loan.settled = true;
+
+  d.transactions.push({
+    id: genId(), type: 'spending',
+    category: 'Pay Off Loan - ' + (loan.bank || loan.person || 'Loan'),
+    amount: amt, description: notes || 'Loan payment', date: date
+  });
+
+  // reduce liability
+  for (var j = 0; j < d.liabilities.length; j++) {
+    if (d.liabilities[j].loanId === loanId) {
+      d.liabilities[j].amount = Math.max(0, d.liabilities[j].amount - amt);
+      break;
+    }
+  }
+
+  saveData(d);
+  closeModal();
+  document.getElementById('addEntryContent').innerHTML = '<div class="form-card" style="text-align:center;padding:36px;">' +
+    '<div style="font-size:52px;margin-bottom:14px;">' + (loan.settled ? '🎉' : '✅') + '</div>' +
+    '<h3 style="color:var(--success);">' + (loan.settled ? 'Loan Fully Settled!' : 'Payment Recorded!') + '</h3>' +
+    '<p style="color:var(--gray);margin-top:8px;">' + formatNum(amt) + ' paid toward ' + escHtml(loan.bank || loan.person || 'Loan') + '</p>' +
+    (loan.settled ? '' : '<p style="color:var(--danger);margin-top:4px;">Remaining: ' + formatNum(loan.remaining) + '</p>') +
+    '<button class="btn-save" style="margin-top:20px;" onclick="renderAddEntry()">Add Another</button>' +
+    '</div>';
+}
+
+// ===== TRANSACTION FORM =====
+function showTransactionForm(type, category) {
+  var cash = getCash();
+  var cashHtml = type === 'spending' ? '<div class="cash-display">Available Cash <span>' + formatNum(cash) + '</span></div>' : '';
+  var assetTypes = ['Real Estate', 'Physical Assets', 'Financial Assets', 'Intangible Assets', 'Business Purchase'];
+  var isAsset = type === 'spending' && assetTypes.indexOf(category) > -1;
+
+  var html = '<div class="form-card">' +
+    '<h3>' + (type === 'income' ? '💚 Income' : '❤️ Spending') + ' - ' + escHtml(category) + '</h3>' +
+    cashHtml +
+    '<div class="form-group"><label>Title</label><input type="text" class="form-input" id="txTitle" placeholder="e.g. Monthly salary"></div>' +
+    '<div class="form-group"><label>Amount (UGX)</label><input type="number" class="form-input" id="txAmount" placeholder="0" min="1" oninput="checkInsufficient()"></div>' +
+    '<div class="form-group"><label>Description (optional)</label><textarea class="form-textarea" id="txDesc" placeholder="Additional notes..."></textarea></div>' +
+    '<div class="form-group"><label>Date</label><input type="date" class="form-input" id="txDate" value="' + today() + '"></div>' +
+    (isAsset ? '<div class="form-group"><label>Asset Name</label><input type="text" class="form-input" id="txAssetName" placeholder="Asset name for records"></div>' : '') +
+    '<div id="insufficientWarn"></div>' +
+    '<div class="form-buttons">' +
+    '<button class="btn-cancel" onclick="' + (type === 'income' ? 'showIncomeCategories' : 'showSpendingCategories') + '()">← Back</button>' +
+    '<button class="btn-save" onclick="saveTransaction(\'' + type + '\',\'' + escAttr(category) + '\')">Save</button>' +
+    '</div></div>';
+  document.getElementById('addEntryContent').innerHTML = html;
+}
+
+function checkInsufficient() {
+  var amt = parseFloat(document.getElementById('txAmount').value) || 0;
+  var cash = getCash();
+  var warn = document.getElementById('insufficientWarn');
+  if (!warn) return;
+  if (amt > cash && amt > 0) {
+    warn.innerHTML = '<div class="insufficient-popup"><p>⚠️ Insufficient Cash! You have ' + formatNum(cash) + ' available.</p>' +
+      '<div class="options">' +
+      '<button class="btn-success" onclick="selectIncomeCategory(\'Salary / Wages\')">+ Add Salary</button>' +
+      '<button class="btn-warning" onclick="selectIncomeCategory(\'Loan Received\')">+ Get Loan</button>' +
+      '</div></div>';
+  } else {
+    warn.innerHTML = '';
+  }
+}
+
+function saveTransaction(type, category) {
+  var title = (document.getElementById('txTitle') ? document.getElementById('txTitle').value.trim() : '');
+  var amount = parseFloat(document.getElementById('txAmount').value);
+  var desc = (document.getElementById('txDesc') ? document.getElementById('txDesc').value.trim() : '');
+  var date = document.getElementById('txDate').value;
+  var assetNameEl = document.getElementById('txAssetName');
+  var assetName = assetNameEl ? assetNameEl.value.trim() : '';
+
+  if (!title) { alert('Please enter a title.'); return; }
+  if (!amount || amount <= 0) { alert('Please enter a valid amount.'); return; }
+  if (!date) { alert('Please select a date.'); return; }
+
+  var d = loadData();
+  var tx = { id: genId(), type: type, category: category, amount: amount, description: desc || title, date: date };
+  d.transactions.push(tx);
+
+  // asset categories
+  var assetCats = ['Real Estate', 'Physical Assets', 'Financial Assets', 'Intangible Assets', 'Business Purchase'];
+  if (type === 'spending' && assetCats.indexOf(category) > -1) {
+    d.assets.push({ id: genId(), name: assetName || title, amount: amount, type: category });
+  }
+  // liabilities for personal/luxury/other spending
+  var liabCats = ['Payments', 'Luxury', 'Personal', 'Others'];
+  var isLiab = false;
+  for (var x = 0; x < liabCats.length; x++) { if (category.indexOf(liabCats[x]) > -1) { isLiab = true; break; } }
+  if (type === 'spending' && isLiab) {
+    d.liabilities.push({ id: genId(), name: title, amount: amount, type: category });
+  }
+
+  saveData(d);
+  document.getElementById('addEntryContent').innerHTML = '<div class="form-card" style="text-align:center;padding:36px;">' +
+    '<div style="font-size:52px;margin-bottom:14px;">' + (type === 'income' ? '💚' : '❤️') + '</div>' +
+    '<h3 style="color:' + (type === 'income' ? 'var(--success)' : 'var(--danger)') + ';">Transaction Saved!</h3>' +
+    '<p style="color:var(--gray);margin-top:8px;">' + formatNum(amount) + ' recorded under ' + escHtml(category) + '</p>' +
+    '<button class="btn-save" style="margin-top:20px;" onclick="renderAddEntry()">Add Another</button>' +
+    '</div>';
+}
+
+// ===== LOAN RECEIVED =====
+function showLoanReceivedForm() {
+  var html = '<div class="form-card"><h3>🏦 Loan Received</h3>' +
+    '<div class="form-group"><label>Bank / Lender Name</label><input type="text" class="form-input" id="lrBank" placeholder="e.g. Stanbic Bank"></div>' +
+    '<div class="form-group"><label>Amount (UGX)</label><input type="number" class="form-input" id="lrAmount" placeholder="0"></div>' +
+    '<div class="form-group"><label>Start Date</label><input type="date" class="form-input" id="lrStart" value="' + today() + '"></div>' +
+    '<div class="form-group"><label>Due Date</label><input type="date" class="form-input" id="lrDue"></div>' +
+    '<div class="form-group"><label>Notes (optional)</label><textarea class="form-textarea" id="lrNotes" placeholder="Interest rate, terms, etc."></textarea></div>' +
+    '<div class="form-buttons"><button class="btn-cancel" onclick="showIncomeCategories()">← Back</button>' +
+    '<button class="btn-save" onclick="saveLoanReceived()">Save Loan</button></div></div>';
+  document.getElementById('addEntryContent').innerHTML = html;
+}
+
+function saveLoanReceived() {
+  var bank = document.getElementById('lrBank').value.trim();
+  var amount = parseFloat(document.getElementById('lrAmount').value);
+  var start = document.getElementById('lrStart').value;
+  var due = document.getElementById('lrDue').value;
+  var notes = document.getElementById('lrNotes').value.trim();
+  if (!bank) { alert('Enter lender name.'); return; }
+  if (!amount || amount <= 0) { alert('Enter valid amount.'); return; }
+  if (!start || !due) { alert('Enter both dates.'); return; }
+  var d = loadData();
+  var loanId = genId();
+  d.loans.push({ id: loanId, bank: bank, amount: amount, remaining: amount, startDate: start, dueDate: due, notes: notes, settled: false });
+  d.transactions.push({ id: genId(), type: 'income', category: 'Loan Received', amount: amount, description: 'Loan from ' + bank, date: start });
+  d.liabilities.push({ id: genId(), loanId: loanId, name: 'Loan - ' + bank, amount: amount, type: 'Loan Payable' });
+  saveData(d);
+  document.getElementById('addEntryContent').innerHTML = '<div class="form-card" style="text-align:center;padding:36px;">' +
+    '<div style="font-size:52px;margin-bottom:14px;">🏦</div>' +
+    '<h3 style="color:var(--success);">Loan Recorded!</h3>' +
+    '<p style="color:var(--gray);margin-top:8px;">' + formatNum(amount) + ' loan from ' + escHtml(bank) + '</p>' +
+    '<button class="btn-save" style="margin-top:20px;" onclick="renderAddEntry()">Add Another</button></div>';
+}
+
+// ===== ASSET SALE =====
+function showAssetSaleForm() {
+  var d = loadData();
+  if (d.assets.length === 0) {
+    document.getElementById('addEntryContent').innerHTML = '<div class="form-card"><h3>🔄 Asset Sale</h3>' +
+      '<div class="empty-state"><span class="empty-icon">📦</span><p>No assets recorded yet.</p></div>' +
+      '<button class="btn-cancel" onclick="showIncomeCategories()">← Back</button></div>';
+    return;
+  }
+  var options = '<option value="">-- Select Asset --</option>';
+  for (var i = 0; i < d.assets.length; i++) {
+    options += '<option value="' + d.assets[i].id + '">' + escHtml(d.assets[i].name) + ' (' + formatNum(d.assets[i].amount) + ')</option>';
+  }
+  var html = '<div class="form-card"><h3>🔄 Asset Sale</h3>' +
+    '<div class="form-group"><label>Select Asset</label><select class="form-select" id="saleAssetId">' + options + '</select></div>' +
+    '<div class="form-group"><label>Sale Amount (UGX)</label><input type="number" class="form-input" id="saleAmount" placeholder="0"></div>' +
+    '<div class="form-group"><label>Date</label><input type="date" class="form-input" id="saleDate" value="' + today() + '"></div>' +
+    '<div class="form-buttons"><button class="btn-cancel" onclick="showIncomeCategories()">← Back</button>' +
+    '<button class="btn-save" onclick="saveAssetSale()">Save Sale</button></div></div>';
+  document.getElementById('addEntryContent').innerHTML = html;
+}
+
+function saveAssetSale() {
+  var assetId = document.getElementById('saleAssetId').value;
+  var amount = parseFloat(document.getElementById('saleAmount').value);
+  var date = document.getElementById('saleDate').value;
+  if (!assetId) { alert('Select an asset.'); return; }
+  if (!amount || amount <= 0) { alert('Enter valid amount.'); return; }
+  var d = loadData();
+  var asset = null;
+  for (var i = 0; i < d.assets.length; i++) { if (d.assets[i].id === assetId) { asset = d.assets[i]; break; } }
+  if (!asset) return;
+  d.transactions.push({ id: genId(), type: 'income', category: 'Asset Sale', amount: amount, description: 'Sale of ' + asset.name, date: date });
+  asset.amount = Math.max(0, asset.amount - amount);
+  saveData(d);
+  document.getElementById('addEntryContent').innerHTML = '<div class="form-card" style="text-align:center;padding:36px;">' +
+    '<div style="font-size:52px;margin-bottom:14px;">🔄</div>' +
+    '<h3 style="color:var(--success);">Sale Recorded!</h3>' +
+    '<p style="color:var(--gray);margin-top:8px;">' + formatNum(amount) + ' from ' + escHtml(asset.name) + '</p>' +
+    '<button class="btn-save" style="margin-top:20px;" onclick="renderAddEntry()">Add Another</button></div>';
+}
+
+// =============================================
+// LEDGER PAGE
+// =============================================
+function renderLedger() {
+  document.getElementById('ledgerCash').textContent = formatNum(getCash());
+  buildLedger('');
+  var search = document.getElementById('ledgerSearch');
+  search.oninput = function() { buildLedger(this.value.toLowerCase()); };
+}
+
+function buildLedger(filter) {
+  var d = loadData();
+  var txs = d.transactions.slice().reverse();
+  if (filter) {
+    txs = txs.filter(function(t) {
+      return t.category.toLowerCase().indexOf(filter) > -1 ||
+        (t.description || '').toLowerCase().indexOf(filter) > -1;
+    });
+  }
+  if (txs.length === 0) {
+    document.getElementById('ledgerContent').innerHTML = '<div class="empty-state"><span class="empty-icon">📭</span><p>No transactions found</p></div>';
+    return;
+  }
+
+  // Group by week
+  var weeks = {};
+  var weekOrder = [];
+  for (var i = 0; i < txs.length; i++) {
+    var wk = getWeekKey(txs[i].date);
+    if (!weeks[wk]) { weeks[wk] = []; weekOrder.push(wk); }
+    weeks[wk].push(txs[i]);
+  }
+
+  var todayStr = today();
+  var currentWeekKey = getWeekKey(todayStr);
+  var html = '';
+
+  for (var w = 0; w < weekOrder.length; w++) {
+    var wk = weekOrder[w];
+    var wkTxs = weeks[wk];
+    var isThisWeek = wk === currentWeekKey;
+    var wkInc = 0, wkExp = 0;
+    for (var k = 0; k < wkTxs.length; k++) {
+      if (wkTxs[k].type === 'income') wkInc += Number(wkTxs[k].amount);
+      else wkExp += Number(wkTxs[k].amount);
+    }
+    html += '<div class="week-section">' +
+      '<div class="week-header" onclick="toggleWeek(this)">' +
+      '<span>' + (isThisWeek ? '📌 This Week · ' : '') + wk + '</span>' +
+      '<span style="font-size:12px;color:var(--gray);">+' + formatNum(wkInc) + ' / -' + formatNum(wkExp) + '</span>' +
+      '</div>' +
+      '<div class="week-body' + (isThisWeek ? ' open' : '') + '">' +
+      '<table class="tx-table"><thead><tr>' +
+      '<th>Date</th><th>Category</th><th>Description</th><th>Amount</th><th>Actions</th>' +
+      '</tr></thead><tbody>';
+
+    for (var t = 0; t < wkTxs.length; t++) {
+      var tx = wkTxs[t];
+      var sign = tx.type === 'income' ? '+' : '-';
+      var cls = tx.type === 'income' ? 'amount-income' : 'amount-expense';
+      html += '<tr>' +
+        '<td>' + formatDate(tx.date) + '</td>' +
+        '<td>' + escHtml(tx.category) + '</td>' +
+        '<td>' + escHtml(tx.description || '') + '</td>' +
+        '<td class="' + cls + '">' + sign + formatNum(tx.amount) + '</td>' +
+        '<td>' +
+        '<button class="btn-edit" onclick="editTx(\'' + tx.id + '\')">✏️</button>' +
+        '<button class="btn-delete" onclick="deleteTx(\'' + tx.id + '\')">🗑️</button>' +
+        '</td></tr>';
+    }
+    html += '</tbody></table></div></div>';
+  }
+  document.getElementById('ledgerContent').innerHTML = html;
+}
+
+function getWeekKey(dateStr) {
+  if (!dateStr) return 'Unknown';
+  var d = new Date(dateStr + 'T00:00:00');
+  var day = d.getDay();
+  var diff = d.getDate() - day + (day === 0 ? -6 : 1);
+  var mon = new Date(d.setDate(diff));
+  var sun = new Date(mon); sun.setDate(sun.getDate() + 6);
+  return mon.toLocaleDateString('en-UG', { day: 'numeric', month: 'short' }) + ' – ' + sun.toLocaleDateString('en-UG', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function toggleWeek(header) {
+  var body = header.nextElementSibling;
+  body.classList.toggle('open');
+}
+
+function deleteTx(id) {
+  if (!confirm('Delete this transaction?')) return;
+  var d = loadData();
+  d.transactions = d.transactions.filter(function(t) { return t.id !== id; });
+  saveData(d);
+  renderLedger();
+}
+
+function editTx(id) {
+  var d = loadData();
+  var tx = null;
+  for (var i = 0; i < d.transactions.length; i++) { if (d.transactions[i].id === id) { tx = d.transactions[i]; break; } }
+  if (!tx) return;
+  var html = '<h3>✏️ Edit Transaction</h3>' +
+    '<div class="form-group"><label>Amount (UGX)</label><input type="number" class="form-input" id="editAmt" value="' + tx.amount + '"></div>' +
+    '<div class="form-group"><label>Description</label><input type="text" class="form-input" id="editDesc" value="' + escHtml(tx.description || '') + '"></div>' +
+    '<div class="form-group"><label>Date</label><input type="date" class="form-input" id="editDate" value="' + tx.date + '"></div>' +
+    '<div class="form-buttons"><button class="btn-cancel" onclick="closeModal()">Cancel</button>' +
+    '<button class="btn-save" onclick="saveEditTx(\'' + id + '\')">Save Changes</button></div>';
+  showModal(html);
+}
+
+function saveEditTx(id) {
+  var amt = parseFloat(document.getElementById('editAmt').value);
+  var desc = document.getElementById('editDesc').value.trim();
+  var date = document.getElementById('editDate').value;
+  if (!amt || amt <= 0) { alert('Enter valid amount.'); return; }
+  var d = loadData();
+  for (var i = 0; i < d.transactions.length; i++) {
+    if (d.transactions[i].id === id) {
+      d.transactions[i].amount = amt;
+      d.transactions[i].description = desc;
+      d.transactions[i].date = date;
+      break;
+    }
+  }
+  saveData(d);
+  closeModal();
+  renderLedger();
+}
+
+// =============================================
+// MONTHLY SUMMARY
+// =============================================
+function renderMonthly() {
+  var d = loadData();
+  var months = {};
+  for (var i = 0; i < d.transactions.length; i++) {
+    var t = d.transactions[i];
+    if (!t.date) continue;
+    var ym = t.date.substr(0, 7);
+    if (!months[ym]) months[ym] = true;
+  }
+  var monthList = Object.keys(months).sort().reverse();
+  var now = today().substr(0, 7);
+  if (monthList.indexOf(now) === -1) monthList.unshift(now);
+
+  var sel = document.getElementById('monthSelect');
+  sel.innerHTML = '';
+  for (var m = 0; m < monthList.length; m++) {
+    var opt = document.createElement('option');
+    opt.value = monthList[m];
+    var parts = monthList[m].split('-');
+    opt.textContent = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, 1).toLocaleDateString('en-UG', { month: 'long', year: 'numeric' });
+    sel.appendChild(opt);
+  }
+  sel.onchange = function() { buildMonthly(this.value); };
+  buildMonthly(monthList[0] || now);
+}
+
+function buildMonthly(ym) {
+  var d = loadData();
+  var txs = d.transactions.filter(function(t) { return t.date && t.date.substr(0, 7) === ym; });
+  if (txs.length === 0) {
+    document.getElementById('monthlyContent').innerHTML = '<div class="empty-state"><span class="empty-icon">📊</span><p>No data for this month</p></div>';
+    return;
+  }
+  var weeks = {};
+  var weekOrder = [];
+  for (var i = 0; i < txs.length; i++) {
+    var wk = getWeekKey(txs[i].date);
+    if (!weeks[wk]) { weeks[wk] = []; weekOrder.push(wk); }
+    weeks[wk].push(txs[i]);
+  }
+  var html = '';
+  for (var w = 0; w < weekOrder.length; w++) {
+    var wk = weekOrder[w];
+    var wkTxs = weeks[wk];
+    var inc = [], exp = [];
+    for (var k = 0; k < wkTxs.length; k++) {
+      if (wkTxs[k].type === 'income') inc.push(wkTxs[k]);
+      else exp.push(wkTxs[k]);
+    }
+    var totalInc = inc.reduce(function(s, t) { return s + Number(t.amount); }, 0);
+    var totalExp = exp.reduce(function(s, t) { return s + Number(t.amount); }, 0);
+    inc.sort(function(a, b) { return b.amount - a.amount; });
+    exp.sort(function(a, b) { return b.amount - a.amount; });
+    html += '<div class="weekly-summary-card">' +
+      '<h4>📅 ' + wk + '</h4>' +
+      '<div class="summary-row"><span>Total Income</span><span class="amount-income">+' + formatNum(totalInc) + '</span></div>' +
+      '<div class="summary-row"><span>Total Spending</span><span class="amount-expense">-' + formatNum(totalExp) + '</span></div>' +
+      '<div class="summary-row"><span>Balance</span><span style="font-weight:900;color:' + (totalInc - totalExp >= 0 ? 'var(--success)' : 'var(--danger)') + ';">' + formatNum(totalInc - totalExp) + '</span></div>' +
+      '<div class="top-items"><div style="font-size:11px;font-weight:700;color:var(--gray);text-transform:uppercase;letter-spacing:1px;margin:10px 0 6px;">Top Income</div>';
+    for (var ti = 0; ti < Math.min(3, inc.length); ti++) {
+      html += '<div class="top-item"><span>' + escHtml(inc[ti].category) + '</span><span class="amount-income">+' + formatNum(inc[ti].amount) + '</span></div>';
+    }
+    html += '<div style="font-size:11px;font-weight:700;color:var(--gray);text-transform:uppercase;letter-spacing:1px;margin:10px 0 6px;">Top Expenses</div>';
+    for (var te = 0; te < Math.min(3, exp.length); te++) {
+      html += '<div class="top-item"><span>' + escHtml(exp[te].category) + '</span><span class="amount-expense">-' + formatNum(exp[te].amount) + '</span></div>';
+    }
+    html += '</div></div>';
+  }
+  document.getElementById('monthlyContent').innerHTML = html;
+}
+
+// =============================================
+// SAFE FOLDER
+// =============================================
+function renderSafeFolder() {
+  renderLoans();
+  renderSecrets();
+}
+
+function renderLoans() {
+  var d = loadData();
+  var html = '';
+  if (d.loans.length === 0) {
+    html = '<div class="empty-state"><span class="empty-icon">🏦</span><p>No loans recorded</p></div>';
+  } else {
+    for (var i = 0; i < d.loans.length; i++) {
+      var l = d.loans[i];
+      html += '<div class="loan-item">' +
+        '<div style="display:flex;justify-content:space-between;align-items:flex-start;">' +
+        '<div><div class="loan-name">🏦 ' + escHtml(l.bank || l.person || 'Loan') + '</div>' +
+        '<div class="loan-details">Principal: ' + formatNum(l.amount) + ' · Start: ' + formatDate(l.startDate) + ' · Due: ' + formatDate(l.dueDate) + '</div>' +
+        (l.notes ? '<div class="loan-details">' + escHtml(l.notes) + '</div>' : '') + '</div>' +
+        '<span class="' + (l.settled ? 'settled-badge' : 'active-badge') + '">' + (l.settled ? '✅ Settled' : '⏳ Active') + '</span>' +
+        '</div>' +
+        '<div style="margin-top:10px;display:flex;justify-content:space-between;align-items:center;">' +
+        '<div><div style="font-size:11px;color:var(--gray);">Remaining</div><div class="loan-amount">' + formatNum(l.remaining) + '</div></div>' +
+        (!l.settled ? '<button class="btn-success" onclick="markLoanSettled(\'' + l.id + '\')">Mark Settled</button>' : '') +
+        '</div></div>';
+    }
+  }
+  document.getElementById('loansList').innerHTML = html;
+}
+
+function markLoanSettled(id) {
+  if (!confirm('Mark this loan as fully settled?')) return;
+  var d = loadData();
+  for (var i = 0; i < d.loans.length; i++) {
+    if (d.loans[i].id === id) { d.loans[i].settled = true; d.loans[i].remaining = 0; break; }
+  }
+  saveData(d);
+  renderLoans();
+}
+
+function showAddLoanModal() {
+  var html = '<h3>🏦 Add New Loan</h3>' +
+    '<div class="form-group"><label>Bank / Lender Name</label><input type="text" class="form-input" id="mlBank" placeholder="e.g. Centenary Bank"></div>' +
+    '<div class="form-group"><label>Amount (UGX)</label><input type="number" class="form-input" id="mlAmount" placeholder="0"></div>' +
+    '<div class="form-group"><label>Start Date</label><input type="date" class="form-input" id="mlStart" value="' + today() + '"></div>' +
+    '<div class="form-group"><label>Due Date</label><input type="date" class="form-input" id="mlDue"></div>' +
+    '<div class="form-group"><label>Notes</label><textarea class="form-textarea" id="mlNotes" placeholder="Interest rate, terms..."></textarea></div>' +
+    '<div class="form-buttons"><button class="btn-cancel" onclick="closeModal()">Cancel</button><button class="btn-save" onclick="saveNewLoan()">Add Loan</button></div>';
+  showModal(html);
+}
+
+function saveNewLoan() {
+  var bank = document.getElementById('mlBank').value.trim();
+  var amount = parseFloat(document.getElementById('mlAmount').value);
+  var start = document.getElementById('mlStart').value;
+  var due = document.getElementById('mlDue').value;
+  var notes = document.getElementById('mlNotes').value.trim();
+  if (!bank || !amount || !start || !due) { alert('Please fill all required fields.'); return; }
+  var d = loadData();
+  var loanId = genId();
+  d.loans.push({ id: loanId, bank: bank, amount: amount, remaining: amount, startDate: start, dueDate: due, notes: notes, settled: false });
+  d.liabilities.push({ id: genId(), loanId: loanId, name: 'Loan - ' + bank, amount: amount, type: 'Loan Payable' });
+  saveData(d);
+  closeModal();
+  renderLoans();
+}
+
+function renderSecrets() {
+  var d = loadData();
+  var html = '';
+  if (d.secrets.length === 0) {
+    html = '<div class="empty-state"><span class="empty-icon">🔒</span><p>No secrets stored</p></div>';
+  } else {
+    for (var i = 0; i < d.secrets.length; i++) {
+      var s = d.secrets[i];
+      html += '<div class="secret-item">' +
+        '<div><div class="secret-label">' + escHtml(s.label) + '</div>' +
+        '<div class="secret-value">' + escHtml(s.value) + '</div></div>' +
+        '<button class="btn-delete" onclick="deleteSecret(' + i + ')">🗑️</button>' +
+        '</div>';
+    }
+  }
+  document.getElementById('secretsList').innerHTML = html;
+}
+
+function showAddSecretModal() {
+  var html = '<h3>🔒 Add Secret</h3>' +
+    '<div class="form-group"><label>Label</label><input type="text" class="form-input" id="sLabel" placeholder="e.g. Bank PIN, WiFi Password"></div>' +
+    '<div class="form-group"><label>Value</label><input type="text" class="form-input" id="sValue" placeholder="Secret value"></div>' +
+    '<div class="form-buttons"><button class="btn-cancel" onclick="closeModal()">Cancel</button><button class="btn-save" onclick="saveSecret()">Save</button></div>';
+  showModal(html);
+}
+
+function saveSecret() {
+  var label = document.getElementById('sLabel').value.trim();
+  var value = document.getElementById('sValue').value.trim();
+  if (!label || !value) { alert('Fill in both fields.'); return; }
+  var d = loadData();
+  d.secrets.push({ label: label, value: value });
+  saveData(d);
+  closeModal();
+  renderSecrets();
+}
+
+function deleteSecret(idx) {
+  if (!confirm('Delete this secret?')) return;
+  var d = loadData();
+  d.secrets.splice(idx, 1);
+  saveData(d);
+  renderSecrets();
+}
+
+// =============================================
+// VALUE FOLDER
+// =============================================
+function renderValueFolder() {
+  var d = loadData();
+  var totalAssets = d.assets.reduce(function(s, a) { return s + Number(a.amount); }, 0);
+  var cash = getCash();
+  var totalLiab = 0;
+  for (var i = 0; i < d.liabilities.length; i++) totalLiab += Number(d.liabilities[i].amount);
+  // add active loan remaining to liabilities
+  var loanLiab = 0;
+  for (var j = 0; j < d.loans.length; j++) {
+    if (!d.loans[j].settled) loanLiab += Number(d.loans[j].remaining);
+  }
+  var netWorth = totalAssets + cash - totalLiab;
+  document.getElementById('netWorthValue').textContent = formatNum(netWorth);
+
+  // Assets
+  var aHtml = '';
+  if (d.assets.length === 0) aHtml = '<div class="empty-state"><span class="empty-icon">📈</span><p>No assets yet</p></div>';
+  else for (var k = 0; k < d.assets.length; k++) {
+    var a = d.assets[k];
+    aHtml += '<div class="asset-item" style="display:flex;justify-content:space-between;align-items:center;">' +
+      '<div><div style="font-weight:700;font-size:13px;">' + escHtml(a.name) + '</div><div style="font-size:11px;color:var(--gray);">' + escHtml(a.type) + '</div></div>' +
+      '<div style="text-align:right;"><div style="font-weight:900;color:var(--success);font-family:var(--font-mono);font-size:14px;">' + formatNum(a.amount) + '</div>' +
+      '<button class="btn-delete" onclick="deleteAsset(\'' + a.id + '\')">🗑️</button></div></div>';
+  }
+  document.getElementById('assetsList').innerHTML = aHtml;
+
+  // Liabilities
+  var lHtml = '';
+  var allLiab = d.liabilities.slice();
+  for (var m = 0; m < d.loans.length; m++) {
+    if (!d.loans[m].settled) {
+      var found = false;
+      for (var n = 0; n < allLiab.length; n++) { if (allLiab[n].loanId === d.loans[m].id) { found = true; break; } }
+      if (!found) allLiab.push({ id: d.loans[m].id, name: 'Loan - ' + (d.loans[m].bank || 'Unknown'), amount: d.loans[m].remaining, type: 'Loan Payable' });
+    }
+  }
+  if (allLiab.length === 0) lHtml = '<div class="empty-state"><span class="empty-icon">📉</span><p>No liabilities yet</p></div>';
+  else for (var p = 0; p < allLiab.length; p++) {
+    var l = allLiab[p];
+    lHtml += '<div class="asset-item" style="display:flex;justify-content:space-between;align-items:center;">' +
+      '<div><div style="font-weight:700;font-size:13px;">' + escHtml(l.name) + '</div><div style="font-size:11px;color:var(--gray);">' + escHtml(l.type) + '</div></div>' +
+      '<div style="text-align:right;"><div style="font-weight:900;color:var(--danger);font-family:var(--font-mono);font-size:14px;">' + formatNum(l.amount) + '</div>' +
+      (!l.loanId ? '<button class="btn-delete" onclick="deleteLiability(\'' + l.id + '\')">🗑️</button>' : '') + '</div></div>';
+  }
+  document.getElementById('liabilitiesList').innerHTML = lHtml;
+}
+
+function showAddAssetModal() {
+  var html = '<h3>📈 Add Asset</h3>' +
+    '<div class="form-group"><label>Name</label><input type="text" class="form-input" id="asName" placeholder="e.g. Toyota Corolla"></div>' +
+    '<div class="form-group"><label>Type</label><select class="form-select" id="asType"><option>Real Estate</option><option>Physical Assets</option><option>Financial Assets</option><option>Intangible Assets</option><option>Business Purchase</option><option>Other</option></select></div>' +
+    '<div class="form-group"><label>Value (UGX)</label><input type="number" class="form-input" id="asAmount" placeholder="0"></div>' +
+    '<div class="form-buttons"><button class="btn-cancel" onclick="closeModal()">Cancel</button><button class="btn-save" onclick="saveAsset()">Add Asset</button></div>';
+  showModal(html);
+}
+
+function saveAsset() {
+  var name = document.getElementById('asName').value.trim();
+  var type = document.getElementById('asType').value;
+  var amount = parseFloat(document.getElementById('asAmount').value);
+  if (!name || !amount) { alert('Fill all fields.'); return; }
+  var d = loadData();
+  d.assets.push({ id: genId(), name: name, amount: amount, type: type });
+  saveData(d);
+  closeModal();
+  renderValueFolder();
+}
+
+function deleteAsset(id) {
+  if (!confirm('Delete this asset?')) return;
+  var d = loadData();
+  d.assets = d.assets.filter(function(a) { return a.id !== id; });
+  saveData(d);
+  renderValueFolder();
+}
+
+function showAddLiabilityModal() {
+  var html = '<h3>📉 Add Liability</h3>' +
+    '<div class="form-group"><label>Name</label><input type="text" class="form-input" id="liName" placeholder="e.g. Credit Card Debt"></div>' +
+    '<div class="form-group"><label>Type</label><select class="form-select" id="liType"><option>Loan Payable</option><option>Credit Card</option><option>Rent Owed</option><option>Other</option></select></div>' +
+    '<div class="form-group"><label>Amount (UGX)</label><input type="number" class="form-input" id="liAmount" placeholder="0"></div>' +
+    '<div class="form-buttons"><button class="btn-cancel" onclick="closeModal()">Cancel</button><button class="btn-save" onclick="saveLiability()">Add Liability</button></div>';
+  showModal(html);
+}
+
+function saveLiability() {
+  var name = document.getElementById('liName').value.trim();
+  var type = document.getElementById('liType').value;
+  var amount = parseFloat(document.getElementById('liAmount').value);
+  if (!name || !amount) { alert('Fill all fields.'); return; }
+  var d = loadData();
+  d.liabilities.push({ id: genId(), name: name, amount: amount, type: type });
+  saveData(d);
+  closeModal();
+  renderValueFolder();
+}
+
+function deleteLiability(id) {
+  if (!confirm('Delete this liability?')) return;
+  var d = loadData();
+  d.liabilities = d.liabilities.filter(function(l) { return l.id !== id; });
+  saveData(d);
+  renderValueFolder();
+}
+
+// =============================================
+// AUDITOR
+// =============================================
+function renderAuditor() {
+  var d = loadData();
+  var cash = getCash();
+  var totalAssets = d.assets.reduce(function(s, a) { return s + Number(a.amount); }, 0);
+  var totalLiab = d.liabilities.reduce(function(s, l) { return s + Number(l.amount); }, 0);
+  var netWorth = totalAssets + cash - totalLiab;
+
+  document.getElementById('auditorStats').innerHTML =
+    '<div class="stat-card balance-card"><div class="stat-label">Cash at Hand</div><div class="stat-value">' + formatNum(cash) + '</div></div>' +
+    '<div class="stat-card income-card"><div class="stat-label">Total Assets</div><div class="stat-value">' + formatNum(totalAssets) + '</div></div>' +
+    '<div class="stat-card expense-card"><div class="stat-label">Total Liabilities</div><div class="stat-value">' + formatNum(totalLiab) + '</div></div>' +
+    '<div class="stat-card balance-card"><div class="stat-label">Net Worth</div><div class="stat-value">' + formatNum(netWorth) + '</div></div>';
+
+  var advice = '';
+  if (netWorth < 0) {
+    advice = '<div class="advice-box red"><h4>🚨 Financial Warning</h4><p>Your net worth is negative. Focus on reducing spending, paying off loans, and increasing income streams immediately.</p></div>';
+  } else if (netWorth < 5000000) {
+    advice = '<div class="advice-box blue"><h4>📊 Stable Position</h4><p>Your finances are stable but modest. Build up your assets, reduce liabilities, and work toward diversified income sources.</p></div>';
+  } else {
+    advice = '<div class="advice-box green"><h4>🌟 Excellent Financial Health</h4><p>Your net worth is strong. Consider diversifying investments, exploring long-term opportunities, and growing your asset portfolio.</p></div>';
+  }
+
+  var loanAdvice = '';
+  var activeLoans = d.loans.filter(function(l) { return !l.settled; });
+  if (activeLoans.length > 0) {
+    loanAdvice = '<div class="advice-box red"><h4>🏦 Active Loans (' + activeLoans.length + ')</h4><p>You have ' + activeLoans.length + ' active loan(s). Prioritize repayment to reduce interest burden and improve net worth.</p></div>';
+  }
+
+  document.getElementById('auditorAdvice').innerHTML = advice + loanAdvice;
+}
+
+// =============================================
+// EXPORT
+// =============================================
+function exportData() {
+  var d = loadData();
+  var json = JSON.stringify(d, null, 2);
+  var blob = new Blob([json], { type: 'application/json' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'silver_wallet_' + today() + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// =============================================
+// MODAL
+// =============================================
+function showModal(html) {
+  document.getElementById('modalBox').innerHTML = html;
+  document.getElementById('modalOverlay').classList.remove('hidden');
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').classList.add('hidden');
+  document.getElementById('modalBox').innerHTML = '';
+}
+
+// =============================================
+// HELPERS
+// =============================================
+function escHtml(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+function escAttr(str) {
+  if (!str) return '';
+  return String(str).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+}
+
+// =============================================
+// DARK MODE
+// =============================================
+function toggleDarkMode() {
+  document.body.classList.toggle('dark-mode');
+  localStorage.setItem('sw_dark', document.body.classList.contains('dark-mode') ? '1' : '0');
+  document.getElementById('themeToggle').textContent = document.body.classList.contains('dark-mode') ? '☀️ Light Mode' : '🌙 Dark Mode';
+}
+
+// =============================================
+// SERVICE WORKER REGISTRATION
+// =============================================
+function registerSW() {
+  if ('serviceWorker' in navigator) {
+    var swCode = `
+const CACHE = 'sw-v1';
+const ASSETS = ['./'];
+self.addEventListener('install', e => {
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));
+});
+self.addEventListener('activate', e => {
+  e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim()));
+});
+self.addEventListener('fetch', e => {
+  e.respondWith(caches.match(e.request).then(r => r || fetch(e.request).catch(() => new Response('Offline'))));
+});`;
+    var blob = new Blob([swCode], { type: 'application/javascript' });
+    var swUrl = URL.createObjectURL(blob);
+    navigator.serviceWorker.register(swUrl).catch(function() {});
+  }
+}
+
+// =============================================
+// INIT
+// =============================================
+document.addEventListener('DOMContentLoaded', function() {
+  // Dark mode
+  if (localStorage.getItem('sw_dark') === '1') {
+    document.body.classList.add('dark-mode');
+    document.getElementById('themeToggle').textContent = '☀️ Light Mode';
+  }
+
+  // Init PIN
+  initPin();
+
+  // Navigation
+  var navItems = document.querySelectorAll('.nav-item');
+  for (var i = 0; i < navItems.length; i++) {
+    navItems[i].addEventListener('click', function() {
+      navigateTo(this.getAttribute('data-page'));
+    });
+  }
+
+  // Mobile menu
+  document.getElementById('mobileMenuBtn').addEventListener('click', function() {
+    document.getElementById('sidebar').classList.toggle('mobile-open');
+    document.getElementById('sidebarOverlay').classList.toggle('visible');
+  });
+  document.getElementById('sidebarOverlay').addEventListener('click', closeSidebar);
+
+  // Theme & Lock
+  document.getElementById('themeToggle').addEventListener('click', toggleDarkMode);
+  document.getElementById('lockAppBtn').addEventListener('click', lockApp);
+
+  // Add Entry buttons
+  document.getElementById('btnShowIncome').addEventListener('click', showIncomeCategories);
+  document.getElementById('btnShowSpending').addEventListener('click', showSpendingCategories);
+
+  // Safe Folder
+  document.getElementById('btnAddLoan').addEventListener('click', showAddLoanModal);
+  document.getElementById('btnAddSecret').addEventListener('click', showAddSecretModal);
+
+  // Value Folder
+  document.getElementById('btnAddAsset').addEventListener('click', showAddAssetModal);
+  document.getElementById('btnAddLiability').addEventListener('click', showAddLiabilityModal);
+
+  // Export
+  document.getElementById('btnExport').addEventListener('click', exportData);
+
+  // Modal close on overlay click
+  document.getElementById('modalOverlay').addEventListener('click', function(e) {
+    if (e.target === this) closeModal();
+  });
+
+  // Set today's date display
+  document.getElementById('todayDate').textContent = new Date().toLocaleDateString('en-UG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+  // Register SW
+  registerSW();
+
+  // Render today
+  renderToday();
+});
+</script>
+</body>
+</html>
